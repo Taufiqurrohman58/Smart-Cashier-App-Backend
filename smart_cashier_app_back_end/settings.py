@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     'users',
     'produks',
     'transactions',
-
 ]
 
 AUTH_USER_MODEL = 'users.User'
