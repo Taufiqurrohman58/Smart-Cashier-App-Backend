@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-h!j51b-o8bzsw66+i0e4o^e!7)-9jasenj)xhi&m%_a@*v#(f-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'users',
     'produks',
     'transactions',
+    "corsheaders",
 ]
 
 AUTH_USER_MODEL = 'users.User'
@@ -64,7 +65,10 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
+    
 ]
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'smart_cashier_app_back_end.urls'
 
