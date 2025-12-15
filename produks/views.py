@@ -1,6 +1,6 @@
 from rest_framework import viewsets, status
 from rest_framework.parsers import MultiPartParser, FormParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
@@ -8,21 +8,37 @@ from .models import GudangProduct, KantinProduct
 from .serializers import GudangProductSerializer, KantinProductSerializer, TransferStokSerializer, TambahStokGudangSerializer, TransferResponseSerializer, TambahStokGudangResponseSerializer
 
 
+class IsAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'admin'
+
+
+class IsAdminOrKasir(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role in ['admin', 'kasir']
+
+
 class GudangProductViewSet(viewsets.ModelViewSet):
     queryset = GudangProduct.objects.all()
     serializer_class = GudangProductSerializer
     parser_classes = [MultiPartParser, FormParser]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdmin]
 
 
 class KantinProductViewSet(viewsets.ModelViewSet):
     queryset = KantinProduct.objects.all()
     serializer_class = KantinProductSerializer
-    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsAdminOrKasir]
+        else:
+            permission_classes = [IsAdmin]
+        return [permission() for permission in permission_classes]
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdmin])
 def transfer_stok_kantin(request):
     serializer = TransferStokSerializer(data=request.data)
     if serializer.is_valid():
@@ -58,7 +74,7 @@ def transfer_stok_kantin(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdmin])
 def tambah_stok_gudang(request):
     serializer = TambahStokGudangSerializer(data=request.data)
     if serializer.is_valid():
