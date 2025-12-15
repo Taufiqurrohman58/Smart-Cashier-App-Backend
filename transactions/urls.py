@@ -1,15 +1,7 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import CartViewSet, TransactionViewSet
-
-router = DefaultRouter()
-
-# Cart endpoints
-router.register(r'cart', CartViewSet, basename='cart')
-
-# Transaction endpoints
-router.register(r'transactions', TransactionViewSet, basename='transactions')
+from django.urls import path
+from .views import payment, history
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('payment/', payment),
+    path('history/', history),
 ]
