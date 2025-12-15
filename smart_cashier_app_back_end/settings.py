@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'users',
     'produks',
     'transactions',
+    'expenses',
     "corsheaders",
 ]
 
