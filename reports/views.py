@@ -11,6 +11,9 @@ from expenses.models import Expense
 
 from datetime import datetime
 from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+
 
 from produks.models import KantinProduct
 from transactions.models import TransactionItem
@@ -200,7 +203,21 @@ def export_rekap_kantin_excel(request):
     ws = wb.active
     ws.title = 'Rekap Stok Kantin'
 
-    ws.append([
+    bold_font = Font(bold=True)
+    center_align = Alignment(horizontal='center', vertical='center')
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    ws.merge_cells('A1:I1')
+    ws['A1'] = f'REKAP STOK KANTIN ({periode})'
+    ws['A1'].font = Font(bold=True, size=14)
+    ws['A1'].alignment = center_align
+
+    headers = [
         'No',
         'Nama Barang',
         'Stok Masuk',
@@ -210,10 +227,20 @@ def export_rekap_kantin_excel(request):
         'Terjual',
         'Sisa Stok',
         'Harga'
-    ])
+    ]
+
+    ws.append(headers)
+
+    header_row = 2
+    for col in range(1, len(headers) + 1):
+        cell = ws.cell(row=header_row, column=col)
+        cell.font = bold_font
+        cell.alignment = center_align
+        cell.border = thin_border
 
     kantin_products = KantinProduct.objects.select_related('product_gudang')
 
+    row = 3
     no = 1
     for kp in kantin_products:
         terjual = TransactionItem.objects.filter(
@@ -225,7 +252,7 @@ def export_rekap_kantin_excel(request):
         stok_masuk = 0
         jumlah_stok = stok_awal + stok_masuk
 
-        ws.append([
+        data = [
             no,
             kp.product_gudang.name,
             stok_masuk,
@@ -235,8 +262,21 @@ def export_rekap_kantin_excel(request):
             terjual,
             kp.stock_kantin,
             kp.product_gudang.price
-        ])
+        ]
+
+        ws.append(data)
+
+        for col in range(1, len(data) + 1):
+            cell = ws.cell(row=row, column=col)
+            cell.border = thin_border
+            if col in [1, 3, 4, 5, 7, 8, 9]:
+                cell.alignment = center_align
+
+        row += 1
         no += 1
+
+    for col in range(1, 10):
+        ws.column_dimensions[get_column_letter(col)].width = 18
 
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
