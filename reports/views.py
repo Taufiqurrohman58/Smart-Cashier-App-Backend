@@ -4,9 +4,16 @@ from rest_framework.permissions import BasePermission
 from django.db.models import Sum
 from django.utils import timezone
 from calendar import monthrange
+from django.http import HttpResponse
 
 from transactions.models import Transaction
 from expenses.models import Expense
+
+from datetime import datetime
+from openpyxl import Workbook
+
+from produks.models import KantinProduct
+from transactions.models import TransactionItem
 
 
 class IsAdmin(BasePermission):
@@ -164,3 +171,79 @@ def laporan_tahunan(request):
         },
         'grafik': grafik
     })
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def export_rekap_kantin_excel(request):
+    date = request.query_params.get('date')
+    month = request.query_params.get('month')
+    year = request.query_params.get('year')
+
+    today = datetime.today()
+
+    trx_filter = {}
+    if date:
+        trx_filter['transaction__created_at__date'] = date
+        periode = date
+    elif month and year:
+        trx_filter['transaction__created_at__month'] = month
+        trx_filter['transaction__created_at__year'] = year
+        periode = f"{month}-{year}"
+    elif year:
+        trx_filter['transaction__created_at__year'] = year
+        periode = year
+    else:
+        trx_filter['transaction__created_at__date'] = today.date()
+        periode = today.strftime('%Y-%m-%d')
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Rekap Stok Kantin'
+
+    ws.append([
+        'No',
+        'Nama Barang',
+        'Stok Masuk',
+        'Stok Awal',
+        'Jumlah Stok',
+        'Satuan',
+        'Terjual',
+        'Sisa Stok',
+        'Harga'
+    ])
+
+    kantin_products = KantinProduct.objects.select_related('product_gudang')
+
+    no = 1
+    for kp in kantin_products:
+        terjual = TransactionItem.objects.filter(
+            product=kp,
+            **trx_filter
+        ).aggregate(total=Sum('qty'))['total'] or 0
+
+        stok_awal = kp.stock_kantin + terjual
+        stok_masuk = 0
+        jumlah_stok = stok_awal + stok_masuk
+
+        ws.append([
+            no,
+            kp.product_gudang.name,
+            stok_masuk,
+            stok_awal,
+            jumlah_stok,
+            kp.product_gudang.satuan,
+            terjual,
+            kp.stock_kantin,
+            kp.product_gudang.price
+        ])
+        no += 1
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = (
+        f'attachment; filename=rekap_kantin_{periode}.xlsx'
+    )
+
+    wb.save(response)
+    return response
