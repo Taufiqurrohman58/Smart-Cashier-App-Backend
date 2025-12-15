@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Cart, CartItem, Transaction, TransactionItem
-from produks.models import Product
+from produks.models import KantinProduct
 
 
 class CartItemSerializer(serializers.ModelSerializer):

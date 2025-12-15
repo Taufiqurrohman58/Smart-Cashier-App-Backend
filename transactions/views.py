@@ -12,7 +12,7 @@ from .serializers import (
     CartSerializer, CartItemSerializer, AddToCartSerializer,
     TransactionSerializer, CheckoutSerializer
 )
-from produks.models import Product 
+from produks.models import KantinProduct
 
 
 class CartViewSet(viewsets.ViewSet):
@@ -41,8 +41,8 @@ class CartViewSet(viewsets.ViewSet):
         qty = serializer.validated_data['qty']
 
         try:
-            product = Product.objects.get(id=product_id, is_active=True)
-        except Product.DoesNotExist:
+            product = KantinProduct.objects.get(id=product_id)
+        except KantinProduct.DoesNotExist:
             return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
 
         cart = self.get_cart(request.user)
@@ -244,9 +244,8 @@ class TransactionViewSet(viewsets.ViewSet):
         ).order_by('-total_sold')[:5]
 
         product_ids = [item['product'] for item in top_products]
-        recommended_products = Product.objects.filter(
-            id__in=product_ids,
-            is_active=True
+        recommended_products = KantinProduct.objects.filter(
+            id__in=product_ids
         ).order_by('-id')  # Simple ordering
 
         # Also get products by category if we have sales data
@@ -258,9 +257,8 @@ class TransactionViewSet(viewsets.ViewSet):
 
         if category_sales:
             top_category = category_sales[0]['product__category']
-            category_products = Product.objects.filter(
-                category=top_category,
-                is_active=True
+            category_products = KantinProduct.objects.filter(
+                product_gudang__category=top_category
             ).exclude(id__in=product_ids)[:3]
 
             recommendations = list(recommended_products) + list(category_products)

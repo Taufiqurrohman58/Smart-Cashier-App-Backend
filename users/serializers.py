@@ -6,7 +6,7 @@ from .models import User
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'role', 'date_joined']
+        fields = ['id', 'name', 'username', 'role', 'date_joined']
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -14,25 +14,23 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['name', 'email', 'password', 'role']
+        fields = ['name', 'username', 'password', 'role']
 
     def create(self, validated_data):
-        return User.objects.create_user(
-            email=validated_data['email'],
-            name=validated_data['name'],
-            password=validated_data['password']
-        )
+        password = validated_data.pop('password')
+        user = User.objects.create_user(**validated_data, password=password)
+        return user
 
 
 class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
+    username = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        user = authenticate(email=data['email'], password=data['password'])
+        user = authenticate(username=data['username'], password=data['password'])
 
         if not user:
-            raise serializers.ValidationError("Email atau password salah.")
+            raise serializers.ValidationError("Username atau password salah.")
 
         if not user.is_active:
             raise serializers.ValidationError("User tidak aktif.")
