@@ -1,0 +1,166 @@
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.permissions import BasePermission
+from django.db.models import Sum
+from django.utils import timezone
+from calendar import monthrange
+
+from transactions.models import Transaction
+from expenses.models import Expense
+
+
+class IsAdmin(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'admin'
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def laporan_harian(request):
+    date = request.query_params.get('date')
+    if not date:
+        return Response({'error': 'Parameter date wajib'}, status=400)
+
+    transaksi = Transaction.objects.filter(created_at__date=date)
+    pengeluaran = Expense.objects.filter(tanggal=date)
+
+    detail_transaksi = []
+    total_penjualan = 0
+
+    for trx in transaksi:
+        items = []
+        for item in trx.items.all():
+            items.append({
+                'produk': item.product.name,
+                'qty': item.qty,
+                'subtotal': item.subtotal
+            })
+
+        total_penjualan += trx.total
+
+        detail_transaksi.append({
+            'invoice': trx.invoice,
+            'kasir': trx.user.username,
+            'items': items,
+            'total': trx.total
+        })
+
+    total_pengeluaran = pengeluaran.aggregate(
+        total=Sum('jumlah')
+    )['total'] or 0
+
+    return Response({
+        'status': True,
+        'periode': 'Harian',
+        'tanggal': date,
+        'penjualan': {
+            'total_transaksi': transaksi.count(),
+            'total_penjualan': total_penjualan,
+            'detail': detail_transaksi
+        },
+        'pengeluaran': {
+            'total_pengeluaran': total_pengeluaran,
+            'detail': [
+                {
+                    'deskripsi': e.deskripsi,
+                    'jumlah': e.jumlah,
+                    'kasir': e.user.username
+                } for e in pengeluaran
+            ]
+        },
+        'ringkasan': {
+            'total_penjualan': total_penjualan,
+            'total_pengeluaran': total_pengeluaran,
+            'laba_bersih': total_penjualan - total_pengeluaran
+        }
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def laporan_bulanan(request):
+    month = request.query_params.get('month')
+    year = request.query_params.get('year')
+
+    if not month or not year:
+        return Response({'error': 'month dan year wajib'}, status=400)
+
+    transaksi = Transaction.objects.filter(
+        created_at__month=month,
+        created_at__year=year
+    )
+
+    pengeluaran = Expense.objects.filter(
+        tanggal__month=month,
+        tanggal__year=year
+    )
+
+    total_penjualan = transaksi.aggregate(
+        total=Sum('total')
+    )['total'] or 0
+
+    total_pengeluaran = pengeluaran.aggregate(
+        total=Sum('jumlah')
+    )['total'] or 0
+
+    return Response({
+        'status': True,
+        'periode': 'Bulanan',
+        'bulan': month,
+        'tahun': year,
+        'penjualan': {
+            'total_penjualan': total_penjualan,
+            'total_transaksi': transaksi.count()
+        },
+        'pengeluaran': {
+            'total_pengeluaran': total_pengeluaran
+        },
+        'ringkasan': {
+            'laba_kotor': total_penjualan,
+            'total_pengeluaran': total_pengeluaran,
+            'laba_bersih': total_penjualan - total_pengeluaran
+        }
+    })
+
+@api_view(['GET'])
+@permission_classes([IsAdmin])
+def laporan_tahunan(request):
+    year = request.query_params.get('year')
+    if not year:
+        return Response({'error': 'year wajib'}, status=400)
+
+    grafik = []
+
+    for month in range(1, 13):
+        penjualan = Transaction.objects.filter(
+            created_at__year=year,
+            created_at__month=month
+        ).aggregate(total=Sum('total'))['total'] or 0
+
+        pengeluaran = Expense.objects.filter(
+            tanggal__year=year,
+            tanggal__month=month
+        ).aggregate(total=Sum('jumlah'))['total'] or 0
+
+        grafik.append({
+            'bulan': f"{month:02d}",
+            'penjualan': penjualan,
+            'pengeluaran': pengeluaran
+        })
+
+    total_penjualan = sum(g['penjualan'] for g in grafik)
+    total_pengeluaran = sum(g['pengeluaran'] for g in grafik)
+
+    return Response({
+        'status': True,
+        'periode': 'Tahunan',
+        'tahun': year,
+        'penjualan': {
+            'total_penjualan': total_penjualan
+        },
+        'pengeluaran': {
+            'total_pengeluaran': total_pengeluaran
+        },
+        'ringkasan': {
+            'laba_bersih': total_penjualan - total_pengeluaran
+        },
+        'grafik': grafik
+    })
