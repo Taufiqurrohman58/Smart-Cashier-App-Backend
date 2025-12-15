@@ -1,13 +1,18 @@
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, BasePermission
 from django.db import transaction as db_transaction
 from .models import Transaction, TransactionItem
 from produks.models import KantinProduct
 
+
+class IsKasir(BasePermission):
+    def has_permission(self, request, view):
+        return request.user.is_authenticated and request.user.role == 'kasir'
+
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsKasir])
 def payment(request):
     items = request.data.get('items')
     uang_bayar = request.data.get('uang_bayar')
@@ -82,7 +87,10 @@ def payment(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def history(request):
-    transactions = Transaction.objects.filter(user=request.user).order_by('-created_at')
+    if request.user.role == 'admin':
+        transactions = Transaction.objects.all().order_by('-created_at')
+    else:
+        transactions = Transaction.objects.filter(user=request.user).order_by('-created_at')
 
     result = []
     for trx in transactions:
@@ -92,7 +100,8 @@ def history(request):
                 'qty': item.qty,
                 'subtotal': item.subtotal
             }
-            for item in trx.transactionitem_set.all()
+            for item in trx.items.all()
+
         ]
 
         result.append({
