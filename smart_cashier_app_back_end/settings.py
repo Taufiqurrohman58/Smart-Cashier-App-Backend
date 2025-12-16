@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'expenses',
     'reports',
     'categories',
+    'ai_insight',
     "corsheaders",
 ]
 

@@ -28,4 +28,5 @@ urlpatterns = [
     path('api/', include('expenses.urls')),
     path('api/', include('reports.urls')),
     path('api/', include('categories.urls')),
+    path('api/', include('ai_insight.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
