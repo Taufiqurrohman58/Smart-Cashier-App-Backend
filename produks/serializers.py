@@ -14,10 +14,11 @@ class KantinProductSerializer(serializers.ModelSerializer):
     price = serializers.DecimalField(source='product_gudang.price', max_digits=10, decimal_places=2, read_only=True)
     image = serializers.ImageField(source='product_gudang.image', read_only=True)
     satuan = serializers.CharField(source='product_gudang.satuan', read_only=True)
+    category = serializers.CharField(source='product_gudang.category', read_only=True)
 
     class Meta:
         model = KantinProduct
-        fields = ['id', 'product_gudang', 'name', 'price', 'stock_kantin', 'satuan', 'image', 'created_at', 'updated_at']
+        fields = ['id', 'product_gudang', 'name', 'category', 'price', 'stock_kantin', 'satuan', 'image', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
 
